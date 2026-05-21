@@ -248,7 +248,9 @@ class HOSEngine:
 def _hours_to_hhmm(h: float) -> str:
     h = max(0.0, h)
     total_min = round(h * 60)
-    hh = (total_min // 60) % 24
+    if total_min >= 1440:
+        return "24:00"
+    hh = total_min // 60
     mm = total_min % 60
     return f"{hh:02d}:{mm:02d}"
 
