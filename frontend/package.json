@@ -12,8 +12,11 @@
     "test:watch": "jest --config jest.config.cjs --watch"
   },
   "dependencies": {
+    "@testing-library/dom": "^10.4.1",
+    "leaflet": "^1.9.4",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "react-leaflet": "^4.2.1"
   },
   "devDependencies": {
     "@babel/core": "^7.29.0",

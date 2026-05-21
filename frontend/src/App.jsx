@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import Sidebar from './components/Sidebar';
 import ELDLog from './components/ELDLog';
+import HOSMap from './components/HOSMap';
 import './index.css';
 
 const INITIAL_FORM = {
@@ -44,6 +45,7 @@ export default function App() {
   const days    = result?.days ?? [];
   const summary = result?.trip_summary ?? null;
   const restart = result?.['34_hour_restart_required'] ?? false;
+  const mapData = result?.map_data ?? null;
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col">
@@ -69,13 +71,21 @@ export default function App() {
       {/* ── Body ── */}
       <main className="flex-1 max-w-screen-xl mx-auto w-full px-6 py-6 grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-6">
 
-        {/* ── Left column: Sidebar ── */}
-        <Sidebar
-          values={form}
-          onChange={handleChange}
-          onSubmit={handleSubmit}
-          loading={loading}
-        />
+        {/* ── Left column: form + map ── */}
+        <div className="flex flex-col gap-4">
+          <Sidebar
+            values={form}
+            onChange={handleChange}
+            onSubmit={handleSubmit}
+            loading={loading}
+          />
+          <HOSMap
+            start={mapData?.start}
+            pickup={mapData?.pickup}
+            dropoff={mapData?.dropoff}
+            stops={mapData?.stops ?? []}
+          />
+        </div>
 
         {/* ── Right column: Results ── */}
         <section className="flex flex-col gap-4">

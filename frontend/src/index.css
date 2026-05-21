@@ -1,3 +1,42 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ── HOSMap custom marker styles ──────────────────────────────── */
+.hos-pin-start {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 0 4px rgba(16,185,129,.25), 0 0 12px rgba(16,185,129,.5);
+  animation: hos-pulse-green 2s ease-in-out infinite;
+}
+
+.hos-pin-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 6px;
+  border-radius: 5px;
+  font-size: 9px;
+  font-weight: 800;
+  font-family: system-ui, sans-serif;
+  color: #fff;
+  letter-spacing: .06em;
+  border: 1.5px solid rgba(255,255,255,.15);
+}
+
+.hos-pin-stop {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+@keyframes hos-pulse-green {
+  0%,100% { box-shadow: 0 0 0 4px rgba(16,185,129,.25), 0 0 12px rgba(16,185,129,.5); }
+  50%      { box-shadow: 0 0 0 8px rgba(16,185,129,.10), 0 0 20px rgba(16,185,129,.4); }
+}
+
+/* Override Leaflet container background for dark theme */
+.leaflet-container { background: #0f172a !important; }
+.leaflet-tile-pane  { filter: brightness(0.95); }

@@ -135,23 +135,6 @@ export default function Sidebar({ values, onChange, onSubmit, loading }) {
         </form>
       </div>
 
-      {/* Map placeholder */}
-      <div className="rounded-2xl border border-slate-700 bg-slate-800/60 overflow-hidden shadow-xl">
-        <div className="px-4 py-2.5 border-b border-slate-700 flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Route Map</span>
-        </div>
-        <div className="h-52 flex items-center justify-center bg-slate-900/60">
-          <div className="text-center space-y-2">
-            <svg className="w-10 h-10 text-slate-600 mx-auto" fill="none" stroke="currentColor"
-              strokeWidth="1.5" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round"
-                d="M9 6.75V15m6-6v8.25m.503-10.498l4.875 2.437c.381.19.622.58.622 1.006v4.217c0 .957-.76 1.764-1.715 1.764H5.106a1.766 1.766 0 01-1.715-1.764V8.695c0-.426.24-.816.622-1.006l4.875-2.437a2 2 0 011.736 0z" />
-            </svg>
-            <p className="text-xs text-slate-600">Map integration coming soon</p>
-          </div>
-        </div>
-      </div>
     </aside>
   );
 }

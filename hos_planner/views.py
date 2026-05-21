@@ -46,6 +46,46 @@ CITY_COORDS = {
 }
 
 
+def _lerp(a, b, t):
+    return a + t * (b - a)
+
+
+def _interpolate_on_route(miles, d_to_pick, total_dist, cur, pick, drop):
+    """Return [lat, lon] at `miles` along the cur→pick→drop straight-line path."""
+    if total_dist < 1e-6:
+        return [round(cur[0], 5), round(cur[1], 5)]
+    if miles <= d_to_pick:
+        t = miles / d_to_pick if d_to_pick > 1e-6 else 0.0
+        return [round(_lerp(cur[0], pick[0], t), 5),
+                round(_lerp(cur[1], pick[1], t), 5)]
+    t = min((miles - d_to_pick) / max(total_dist - d_to_pick, 1e-6), 1.0)
+    return [round(_lerp(pick[0], drop[0], t), 5),
+            round(_lerp(pick[1], drop[1], t), 5)]
+
+
+def _build_stop_markers(events, d_to_pick, total_dist, cur, pick, drop):
+    """Scan the flat event list and return map marker dicts for rest/fuel stops."""
+    markers = []
+    cum_miles = 0.0
+    for ev in events:
+        dur = ev["end"] - ev["start"]
+        if ev["status"] == "DRIVING":
+            cum_miles += dur * SPEED_MPH
+        if ev["status"] == "SLEEPER_BERTH":
+            markers.append({
+                "position": _interpolate_on_route(cum_miles, d_to_pick, total_dist, cur, pick, drop),
+                "type": "rest",
+                "label": "Rest Stop",
+            })
+        elif ev["status"] == "ON_DUTY" and ev.get("reason") == "FUELING":
+            markers.append({
+                "position": _interpolate_on_route(cum_miles, d_to_pick, total_dist, cur, pick, drop),
+                "type": "fuel",
+                "label": "Fuel Stop",
+            })
+    return markers
+
+
 def haversine_miles(c1, c2):
     R = 3958.8
     lat1, lon1 = math.radians(c1[0]), math.radians(c1[1])
@@ -341,6 +381,11 @@ def hos_planner(request):
 
     days = segment_into_days(engine.events, date.today())
 
+    stop_markers = _build_stop_markers(
+        engine.events, dist_to_pickup, total_distance,
+        cur_coords, pick_coords, drop_coords,
+    )
+
     response_payload = {
         "trip_summary": {
             "total_distance_miles":       round(total_distance, 2),
@@ -349,6 +394,12 @@ def hos_planner(request):
             "dropoff_duration_hours":     DROPOFF_DURATION,
             "current_cycle_used":         current_cycle_used,
             "estimated_cycle_after_trip": round(cycle_after_trip, 2),
+        },
+        "map_data": {
+            "start":   list(cur_coords),
+            "pickup":  list(pick_coords),
+            "dropoff": list(drop_coords),
+            "stops":   stop_markers,
         },
         "days": days,
         "warnings": warnings,
