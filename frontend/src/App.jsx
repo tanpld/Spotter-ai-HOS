@@ -90,15 +90,27 @@ export default function App() {
         {/* ── Right column: Results ── */}
         <section className="flex flex-col gap-4">
 
-          {/* Restart warning banner */}
+          {/* 34-hour restart — amber, highly visible */}
           {restart && (
-            <div className="rounded-xl border border-red-700 bg-red-900/30 px-4 py-3
-                            flex items-center gap-3 text-sm text-red-300">
-              <span className="text-2xl">⚠️</span>
+            <div className="rounded-xl border border-amber-500 bg-amber-950/70 px-5 py-4
+                            flex items-start gap-4
+                            shadow-lg shadow-amber-900/40
+                            ring-1 ring-amber-400/20">
+              <div className="shrink-0 w-10 h-10 rounded-xl
+                              bg-amber-400/20 border border-amber-500/50
+                              flex items-center justify-center text-xl mt-0.5">
+                ⚠️
+              </div>
               <div>
-                <p className="font-bold text-red-200">34-Hour Restart Required</p>
-                <p className="text-xs text-red-400 mt-0.5">
-                  Cycle hours exceeded 70 h. Driver must take a 34-hour off-duty restart before continuing.
+                <p className="font-extrabold text-amber-200 text-sm tracking-wide uppercase">
+                  34-Hour Restart Required
+                </p>
+                <p className="text-xs text-amber-400/90 mt-1 leading-relaxed">
+                  Cycle hours exceeded{' '}
+                  <span className="font-bold text-amber-300">70 h</span>.{' '}
+                  Driver must complete a mandatory{' '}
+                  <span className="font-bold text-amber-300">34-hour</span>{' '}
+                  off-duty restart before resuming operations.
                 </p>
               </div>
             </div>
@@ -159,14 +171,29 @@ export default function App() {
 
           {/* Empty state */}
           {!result && !loading && (
-            <div className="flex-1 flex flex-col items-center justify-center py-20 text-center space-y-4">
-              <div className="w-16 h-16 rounded-2xl bg-slate-800 border border-slate-700
-                              flex items-center justify-center text-3xl shadow-lg">
-                🚛
+            <div className="flex-1 flex flex-col items-center justify-center py-24 text-center">
+              <div className="relative mb-6">
+                <div className="w-20 h-20 rounded-2xl bg-slate-800/80 border border-slate-700
+                                flex items-center justify-center text-4xl shadow-xl">
+                  📋
+                </div>
+                <div className="absolute -bottom-1.5 -right-1.5 w-8 h-8 rounded-xl
+                                bg-indigo-600 border-2 border-slate-900
+                                flex items-center justify-center text-base shadow-lg">
+                  🚛
+                </div>
               </div>
-              <p className="text-slate-500 text-sm max-w-xs">
-                Fill in the trip details on the left and click <strong className="text-slate-400">Plan My Trip</strong> to generate a FMCSA-compliant ELD log.
+              <h3 className="text-slate-300 font-bold text-base mb-2">No log generated yet</h3>
+              <p className="text-slate-500 text-sm max-w-[260px] leading-relaxed">
+                Enter trip details to generate{' '}
+                <span className="text-slate-400 font-medium">FMCSA compliant</span>{' '}
+                ELD logs and route map
               </p>
+              <div className="mt-6 flex items-center gap-2 text-[11px] text-slate-700">
+                <span className="w-1 h-1 rounded-full bg-slate-700" />
+                <span>HOS Rules Enforced Automatically</span>
+                <span className="w-1 h-1 rounded-full bg-slate-700" />
+              </div>
             </div>
           )}
 

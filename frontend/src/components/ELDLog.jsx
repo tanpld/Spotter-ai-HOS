@@ -92,8 +92,6 @@ export default function ELDLog({ day }) {
 
   const segments = useMemo(() => buildSegments(log_entries), [log_entries]);
 
-  console.log('Segments:', segments);
-
   return (
     <div className="rounded-xl overflow-hidden border border-slate-700 bg-slate-950 shadow-2xl select-none">
 

@@ -198,6 +198,23 @@ export default function HOSMap({ start, pickup, dropoff, stops = [] }) {
         {route.length > 1 && <FitBoundsToRoute positions={route} />}
       </MapContainer>
 
+      {/* ── Empty-state overlay ── */}
+      {!hasCoords && (
+        <div className="absolute inset-0 z-[1000] flex flex-col items-center justify-center
+                        bg-slate-950/60 backdrop-blur-[2px] pointer-events-none">
+          <div className="text-center px-6">
+            <div className="w-12 h-12 mx-auto rounded-xl bg-slate-800 border border-slate-700
+                            flex items-center justify-center text-2xl mb-3 shadow-lg">
+              🗺️
+            </div>
+            <p className="text-slate-300 text-xs font-semibold mb-1">No route to display</p>
+            <p className="text-slate-500 text-[11px] leading-relaxed max-w-[180px] mx-auto">
+              Enter trip details to generate FMCSA compliant logs
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* ── Legend (bottom-right overlay) ── */}
       {hasCoords && (
         <div className="absolute bottom-2 right-2 z-[1000]
