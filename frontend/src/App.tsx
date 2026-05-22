@@ -3,7 +3,7 @@ import Sidebar from './components/Sidebar';
 import ELDLog from './components/ELDLog';
 import HOSMap from './components/HOSMap';
 import './index.css';
-import { TripForm, TripResult } from './types';
+import { TripForm, TripResult, ResolvedCoords } from './types';
 
 const INITIAL_FORM: TripForm = {
   current_location:   '',
@@ -13,25 +13,44 @@ const INITIAL_FORM: TripForm = {
 };
 
 export default function App() {
-  const [form,    setForm]    = useState<TripForm>(INITIAL_FORM);
-  const [result,  setResult]  = useState<TripResult | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error,   setError]   = useState<string | null>(null);
-  const [activeDay, setActiveDay] = useState(0);
+  const [form,           setForm]           = useState<TripForm>(INITIAL_FORM);
+  const [resolvedCoords, setResolvedCoords] = useState<ResolvedCoords>({});
+  const [result,         setResult]         = useState<TripResult | null>(null);
+  const [loading,        setLoading]        = useState(false);
+  const [error,          setError]          = useState<string | null>(null);
+  const [activeDay,      setActiveDay]      = useState(0);
 
-  function handleChange(field: keyof TripForm, value: string | number) {
+  function handleChange(field: keyof TripForm, value: string | number, coords?: [number, number]) {
     setForm(prev => ({ ...prev, [field]: value }));
+    if (field === 'current_location' || field === 'pickup_location' || field === 'dropoff_location') {
+      setResolvedCoords(prev => {
+        const next = { ...prev };
+        if (coords) {
+          next[field] = coords;
+        } else {
+          delete next[field];
+        }
+        return next;
+      });
+    }
   }
 
   async function handleSubmit() {
     setLoading(true);
     setError(null);
+    setResult(null);
     setActiveDay(0);
     try {
+      const payload = {
+        ...form,
+        ...(resolvedCoords.current_location  ? { current_coords:  resolvedCoords.current_location  } : {}),
+        ...(resolvedCoords.pickup_location   ? { pickup_coords:   resolvedCoords.pickup_location   } : {}),
+        ...(resolvedCoords.dropoff_location  ? { dropoff_coords:  resolvedCoords.dropoff_location  } : {}),
+      };
       const res = await fetch('/api/hos-planner/', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify(form),
+        body:    JSON.stringify(payload),
       });
       if (!res.ok) throw new Error(`Server error ${res.status}`);
       const data = await res.json() as TripResult;
@@ -200,9 +219,28 @@ export default function App() {
 
           {/* Loading skeleton */}
           {loading && (
-            <div className="space-y-3 animate-pulse">
-              <div className="h-20 rounded-xl bg-slate-800 border border-slate-700" />
-              <div className="h-56 rounded-xl bg-slate-800 border border-slate-700" />
+            <div className="space-y-4 animate-pulse">
+              {/* 4 summary pills */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="rounded-xl border border-slate-700 bg-slate-800/50 px-4 py-3">
+                    <div className="h-2 w-16 rounded bg-slate-700 mb-3 mx-auto" />
+                    <div className="h-5 w-12 rounded bg-slate-600 mx-auto" />
+                  </div>
+                ))}
+              </div>
+              {/* Tab bar + log card */}
+              <div className="rounded-2xl border border-slate-700 bg-slate-800/40 overflow-hidden">
+                <div className="flex gap-1 px-3 py-2 border-b border-slate-700 bg-slate-900/50">
+                  {[...Array(3)].map((_, i) => (
+                    <div key={i} className="h-7 w-20 rounded-md bg-slate-700" />
+                  ))}
+                </div>
+                <div className="p-4 space-y-3">
+                  <div className="h-3 w-24 rounded bg-slate-700" />
+                  <div className="h-40 rounded-lg bg-slate-700/50" />
+                </div>
+              </div>
             </div>
           )}
         </section>

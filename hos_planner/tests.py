@@ -1,8 +1,55 @@
 import json
+from unittest.mock import patch
 from django.test import TestCase, Client
 
-
 ENDPOINT = '/api/hos-planner/'
+
+# Fixed coords used by all tests — avoids real HTTP calls to Nominatim / OSRM
+MOCK_COORDS = {
+    "new york, ny":     (40.7128,  -74.0060),
+    "philadelphia, pa": (39.9526,  -75.1652),
+    "baltimore, md":    (39.2904,  -76.6122),
+    "chicago, il":      (41.8781,  -87.6298),
+    "los angeles, ca":  (34.0522, -118.2437),
+    "dallas, tx":       (32.7767,  -96.7970),
+    "seattle, wa":      (47.6062, -122.3321),
+    "miami, fl":        (25.7617,  -80.1918),
+    "detroit, mi":      (42.3314,  -83.0458),
+    "columbus, oh":     (39.9612,  -82.9988),
+}
+
+MOCK_DISTANCES = {
+    # (cur, pick, drop) → (dist_to_pickup, dist_to_dropoff)
+    ("new york, ny",    "philadelphia, pa", "baltimore, md"):    (95.0,  100.0),
+    ("chicago, il",     "dallas, tx",       "los angeles, ca"):  (920.0, 1240.0),
+    ("seattle, wa",     "los angeles, ca",  "miami, fl"):        (1140.0, 2750.0),
+    ("chicago, il",     "dallas, tx",       "miami, fl"):        (920.0, 1310.0),
+}
+
+def _mock_geocode(location: str):
+    return MOCK_COORDS[location.strip().lower()]
+
+def _mock_road_distance(c1, c2):
+    """Haversine so tests stay deterministic without network."""
+    import math
+    R = 3958.8
+    lat1, lon1 = math.radians(c1[0]), math.radians(c1[1])
+    lat2, lon2 = math.radians(c2[0]), math.radians(c2[1])
+    a = (math.sin((lat2-lat1)/2)**2
+         + math.cos(lat1)*math.cos(lat2)*math.sin((lon2-lon1)/2)**2)
+    return R * 2 * math.asin(math.sqrt(a))
+
+
+class HOSTestCase(TestCase):
+    """Base class that patches external calls for all HOS tests."""
+    def setUp(self):
+        patcher_geo  = patch('hos_planner.views.geocode',            side_effect=_mock_geocode)
+        patcher_dist = patch('hos_planner.views.road_distance_miles', side_effect=_mock_road_distance)
+        self.mock_geo  = patcher_geo.start()
+        self.mock_dist = patcher_dist.start()
+        self.addCleanup(patcher_geo.stop)
+        self.addCleanup(patcher_dist.stop)
+        self.client = Client()
 
 
 def post(client, payload):
@@ -21,14 +68,14 @@ def sum_day_hours(day: dict) -> float:
 # Test 1: Short Trip
 # ---------------------------------------------------------------------------
 
-class ShortTripTest(TestCase):
+class ShortTripTest(HOSTestCase):
     """
     NY → Philadelphia (≈95 mi) → Baltimore (≈100 mi).
     Total driving fits inside one duty window, no rest break needed.
     """
 
     def setUp(self):
-        self.client = Client()
+        super().setUp()
         self.payload = {
             "current_location": "New York, NY",
             "pickup_location": "Philadelphia, PA",
@@ -94,14 +141,14 @@ class ShortTripTest(TestCase):
 # Test 2: Long Multi-Day Trip
 # ---------------------------------------------------------------------------
 
-class LongTripTest(TestCase):
+class LongTripTest(HOSTestCase):
     """
     NY → Chicago → Los Angeles ≈ 2,800 mi total, ~46.7 h driving.
     Must produce multiple days, 10-h rest breaks, and fueling stops every 1,000 mi.
     """
 
     def setUp(self):
-        self.client = Client()
+        super().setUp()
         self.payload = {
             "current_location": "New York, NY",
             "pickup_location": "Chicago, IL",
@@ -176,14 +223,14 @@ class LongTripTest(TestCase):
 # Test 3: HOS Cycle Violation — 34-hour restart required
 # ---------------------------------------------------------------------------
 
-class CycleViolationTest(TestCase):
+class CycleViolationTest(HOSTestCase):
     """
     current_cycle_used=65 → only 5 h remain in the 70-h/8-day cycle.
     Any non-trivial trip must trigger 34_hour_restart_required=True.
     """
 
     def setUp(self):
-        self.client = Client()
+        super().setUp()
         self.payload = {
             "current_location": "Chicago, IL",
             "pickup_location": "Detroit, MI",
@@ -219,7 +266,7 @@ class CycleViolationTest(TestCase):
 # Test 4: 24-Hour Daily Integrity
 # ---------------------------------------------------------------------------
 
-class DailyIntegrityTest(TestCase):
+class DailyIntegrityTest(HOSTestCase):
     """
     For every day in every response, the sum of all log entry durations
     must equal exactly 24.0 hours. Idle time must be padded with OFF_DUTY.
@@ -256,7 +303,7 @@ class DailyIntegrityTest(TestCase):
     ]
 
     def setUp(self):
-        self.client = Client()
+        super().setUp()
 
     def _run_integrity_check(self, payload, label):
         data = post(self.client, payload).json()

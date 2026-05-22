@@ -45,3 +45,6 @@ export interface TripForm {
   dropoff_location: string;
   current_cycle_used: number;
 }
+
+// Pre-resolved coordinates keyed by the three location fields
+export type ResolvedCoords = Partial<Record<'current_location' | 'pickup_location' | 'dropoff_location', [number, number]>>;

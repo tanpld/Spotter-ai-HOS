@@ -1,11 +1,16 @@
 import json
 import math
+import urllib.request
+import urllib.parse
 from datetime import date, timedelta
+from typing import Tuple
 
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from .models import TripLog
+
+Coords = Tuple[float, float]
 
 # ---------------------------------------------------------------------------
 # Constants (FMCSA HOS rules)
@@ -24,26 +29,43 @@ BREAK_DURATION = 0.5           # 30-minute break
 MAX_CYCLE_HOURS = 70.0         # 70-hour / 8-day cycle limit
 
 # ---------------------------------------------------------------------------
-# Mock city coordinates (lat, lon)
+# Geocoding — Nominatim (OpenStreetMap) with in-memory cache
 # ---------------------------------------------------------------------------
 
-CITY_COORDS = {
-    "new york, ny":      (40.7128,  -74.0060),
-    "philadelphia, pa":  (39.9526,  -75.1652),
-    "baltimore, md":     (39.2904,  -76.6122),
-    "chicago, il":       (41.8781,  -87.6298),
-    "los angeles, ca":   (34.0522, -118.2437),
-    "detroit, mi":       (42.3314,  -83.0458),
-    "columbus, oh":      (39.9612,  -82.9988),
-    "houston, tx":       (29.7604,  -95.3698),
-    "phoenix, az":       (33.4484, -112.0740),
-    "dallas, tx":        (32.7767,  -96.7970),
-    "denver, co":        (39.7392, -104.9903),
-    "seattle, wa":       (47.6062, -122.3321),
-    "atlanta, ga":       (33.7490,  -84.3880),
-    "miami, fl":         (25.7617,  -80.1918),
-    "boston, ma":        (42.3601,  -71.0589),
-}
+_geocode_cache: dict = {}
+
+def geocode(location: str) -> Coords:
+    key = location.strip().lower()
+    if key in _geocode_cache:
+        return _geocode_cache[key]
+
+    params = urllib.parse.urlencode({
+        "q": location,
+        "format": "json",
+        "limit": 1,
+        "addressdetails": 0,
+    })
+    url = f"https://nominatim.openstreetmap.org/search?{params}"
+    req = urllib.request.Request(url, headers={
+        "User-Agent": "SpotterHOS/1.0 (educational project; contact: spotter@example.com)",
+        "Accept-Language": "en",
+    })
+    try:
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            results = json.loads(resp.read().decode())
+        if results:
+            coords: Coords = (float(results[0]["lat"]), float(results[0]["lon"]))
+            _geocode_cache[key] = coords
+            return coords
+    except Exception as exc:
+        raise ValueError(f"Geocoding failed for {location!r}: {exc}")
+
+    raise ValueError(f"No geocoding results for {location!r}")
+
+
+# ---------------------------------------------------------------------------
+# Distance — OSRM road distance with haversine fallback
+# ---------------------------------------------------------------------------
 
 
 def _lerp(a, b, t):
@@ -86,7 +108,7 @@ def _build_stop_markers(events, d_to_pick, total_dist, cur, pick, drop):
     return markers
 
 
-def haversine_miles(c1, c2):
+def haversine_miles(c1: Coords, c2: Coords) -> float:
     R = 3958.8
     lat1, lon1 = math.radians(c1[0]), math.radians(c1[1])
     lat2, lon2 = math.radians(c2[0]), math.radians(c2[1])
@@ -95,19 +117,26 @@ def haversine_miles(c1, c2):
     return R * 2 * math.asin(math.sqrt(a))
 
 
-def geocode(location: str):
-    key = location.strip().lower()
-    if key in CITY_COORDS:
-        return CITY_COORDS[key]
+def road_distance_miles(c1: Coords, c2: Coords) -> float:
+    """Real road distance via OSRM public API; falls back to haversine."""
+    lat1, lon1 = c1
+    lat2, lon2 = c2
+    url = (
+        f"https://router.project-osrm.org/route/v1/driving/"
+        f"{lon1},{lat1};{lon2},{lat2}"
+        f"?overview=false"
+    )
+    req = urllib.request.Request(
+        url, headers={"User-Agent": "SpotterHOS/1.0"}
+    )
     try:
-        from geopy.geocoders import Nominatim
-        geo = Nominatim(user_agent="spotter_hos")
-        loc = geo.geocode(location)
-        if loc:
-            return (loc.latitude, loc.longitude)
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            data = json.loads(resp.read().decode())
+        if data.get("routes"):
+            return data["routes"][0]["distance"] / 1609.344  # metres → miles
     except Exception:
         pass
-    raise ValueError(f"Cannot geocode: {location!r}")
+    return haversine_miles(c1, c2)
 
 
 # ---------------------------------------------------------------------------
@@ -346,17 +375,23 @@ def hos_planner(request):
     if missing:
         return JsonResponse({"error": f"Missing fields: {missing}"}, status=400)
 
+    def _resolve(key: str, coords_key: str):
+        raw = body.get(coords_key)
+        if raw and len(raw) == 2:
+            return (float(raw[0]), float(raw[1]))
+        return geocode(body[key])
+
     try:
-        cur_coords    = geocode(body["current_location"])
-        pick_coords   = geocode(body["pickup_location"])
-        drop_coords   = geocode(body["dropoff_location"])
+        cur_coords  = _resolve("current_location",  "current_coords")
+        pick_coords = _resolve("pickup_location",   "pickup_coords")
+        drop_coords = _resolve("dropoff_location",  "dropoff_coords")
     except ValueError as exc:
         return JsonResponse({"error": str(exc)}, status=400)
 
     current_cycle_used = float(body["current_cycle_used"])
 
-    dist_to_pickup  = haversine_miles(cur_coords, pick_coords)
-    dist_to_dropoff = haversine_miles(pick_coords, drop_coords)
+    dist_to_pickup  = road_distance_miles(cur_coords, pick_coords)
+    dist_to_dropoff = road_distance_miles(pick_coords, drop_coords)
     total_distance  = dist_to_pickup + dist_to_dropoff
 
     engine = HOSEngine(current_cycle_used)
