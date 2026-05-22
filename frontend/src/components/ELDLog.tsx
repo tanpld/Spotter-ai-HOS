@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useFullscreen } from '../hooks/useFullscreen';
+import { Day, HosStatus } from '../types';
 
 // ── SVG layout constants ──────────────────────────────────────────────────────
 const ML  = 126;          // margin-left  (row label area)
@@ -13,7 +14,7 @@ const SW  = ML + GW + TG + TW + 6;   // SVG total width  ≈ 1008
 const SH  = MT + GH + 12;            // SVG total height ≈ 182
 
 // ── Data ─────────────────────────────────────────────────────────────────────
-const ROWS = ['OFF_DUTY', 'SLEEPER_BERTH', 'DRIVING', 'ON_DUTY'];
+const ROWS: HosStatus[] = ['OFF_DUTY', 'SLEEPER_BERTH', 'DRIVING', 'ON_DUTY'];
 
 const LABELS = ['Off Duty', 'Sleeper Berth', 'Driving', 'On Duty'];
 
@@ -34,29 +35,36 @@ const HOUR_LABELS = [
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-function fmt(h) {
+function fmt(h: number): string {
   return h % 1 === 0 ? String(h) : h.toFixed(1);
 }
 
-function timeToX(t) {
+function timeToX(t: string): number {
   if (t === '24:00') return ML + GW;
   const [h, m] = t.split(':').map(Number);
   return ML + ((h * 60 + m) / 1440) * GW;
 }
 
-function rowY(status) {
+function rowY(status: HosStatus): number {
   const i = ROWS.indexOf(status);
   if (i === -1) return MT + GH / 2;
   return MT + (i + 0.5) * RH;
 }
 
-function buildSegments(entries) {
+interface Segment {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+}
+
+function buildSegments(entries: Day['log_entries']): Segment[] {
   const valid = [...entries]
     .filter(e => ROWS.includes(e.status))
     .sort((a, b) => timeToX(a.start_time) - timeToX(b.start_time));
 
-  const segs = [];
-  let prevY = null;
+  const segs: Segment[] = [];
+  let prevY: number | null = null;
 
   for (const e of valid) {
     const x1 = timeToX(e.start_time);
@@ -73,11 +81,15 @@ function buildSegments(entries) {
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
-export default function ELDLog({ day }) {
+interface ELDLogProps {
+  day: Day | null | undefined;
+}
+
+export default function ELDLog({ day }: ELDLogProps) {
   const { date, log_entries = [] } = day ?? {};
 
   const totals = useMemo(() => {
-    const t = Object.fromEntries(ROWS.map(r => [r, 0]));
+    const t = Object.fromEntries(ROWS.map(r => [r, 0])) as Record<HosStatus, number>;
     for (const e of log_entries) {
       if (t[e.status] !== undefined) t[e.status] += e.duration;
     }
@@ -94,7 +106,7 @@ export default function ELDLog({ day }) {
   if (!day) return null;
 
   return (
-    <div ref={ref}
+    <div ref={ref as React.RefObject<HTMLDivElement>}
          className="rounded-xl overflow-hidden border border-slate-700 bg-slate-950 shadow-2xl select-none"
          style={isFullscreen ? { height: '100vh', overflowY: 'auto' } : {}}>
 
@@ -312,7 +324,7 @@ export default function ELDLog({ day }) {
                      bg-red-950/60 border border-red-800 px-3 py-2
                      text-xs text-red-300"
         >
-          <span className="text-base">⚠</span>
+          <span className="text-base">&#x26A0;</span>
           <span>
             Day total is <strong className="text-red-200">{fmt(grandTotal)}</strong> h —
             expected <strong className="text-red-200">24</strong> h.

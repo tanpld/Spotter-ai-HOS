@@ -1,7 +1,16 @@
-const FIELDS = [
-  { id: 'current_location', label: 'Current Location',    placeholder: 'e.g. New York, NY' },
-  { id: 'pickup_location',  label: 'Pickup Location',     placeholder: 'e.g. Chicago, IL'  },
-  { id: 'dropoff_location', label: 'Dropoff Location',    placeholder: 'e.g. Los Angeles, CA' },
+import { TripForm } from '../types';
+
+interface SidebarProps {
+  values: TripForm;
+  onChange: (field: keyof TripForm, value: string | number) => void;
+  onSubmit: () => void;
+  loading: boolean;
+}
+
+const FIELDS: Array<{ id: keyof TripForm; label: string; placeholder: string }> = [
+  { id: 'current_location', label: 'Current Location',  placeholder: 'e.g. New York, NY' },
+  { id: 'pickup_location',  label: 'Pickup Location',   placeholder: 'e.g. Chicago, IL'  },
+  { id: 'dropoff_location', label: 'Dropoff Location',  placeholder: 'e.g. Los Angeles, CA' },
 ];
 
 function Spinner() {
@@ -22,8 +31,8 @@ function Spinner() {
   );
 }
 
-export default function Sidebar({ values, onChange, onSubmit, loading }) {
-  function handleSubmit(e) {
+export default function Sidebar({ values, onChange, onSubmit, loading }: SidebarProps) {
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     onSubmit();
   }
@@ -54,7 +63,7 @@ export default function Sidebar({ values, onChange, onSubmit, loading }) {
                 <input
                   id={id}
                   type="text"
-                  value={values[id] ?? ''}
+                  value={(values[id] as string) ?? ''}
                   onChange={e => onChange(id, e.target.value)}
                   placeholder={placeholder}
                   required

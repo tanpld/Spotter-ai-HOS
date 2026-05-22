@@ -1,19 +1,28 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useFullscreen } from '../hooks/useFullscreen';
 import { MapContainer, TileLayer, Polyline, Marker, useMap } from 'react-leaflet';
-import L from 'leaflet';
+import L, { LatLngTuple } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { MapStop } from '../types';
 
 // ── Tile config ──────────────────────────────────────────────────────────────
 const DARK_TILES = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
 const ATTRIBUTION =
   '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>';
 
-const US_CENTER = [39.5, -98.35];
+const US_CENTER: LatLngTuple = [39.5, -98.35];
 
 // ── Icon factory ─────────────────────────────────────────────────────────────
-function makeIcon(type) {
-  const configs = {
+type IconType = 'start' | 'pickup' | 'dropoff' | 'rest' | 'fuel';
+
+interface IconConfig {
+  html: string;
+  size: [number, number];
+  anchor: [number, number];
+}
+
+function makeIcon(type: IconType): L.DivIcon {
+  const configs: Record<IconType, IconConfig> = {
     start: {
       html: `<div class="hos-pin-start"></div>`,
       size: [16, 16],
@@ -40,12 +49,16 @@ function makeIcon(type) {
       anchor: [5, 5],
     },
   };
-  const { html, size, anchor } = configs[type] ?? configs.rest;
+  const { html, size, anchor } = configs[type];
   return L.divIcon({ html, className: '', iconSize: size, iconAnchor: anchor });
 }
 
 // ── FitBounds inner component (must live inside MapContainer) ─────────────────
-function FitBoundsToRoute({ positions }) {
+interface FitBoundsProps {
+  positions: LatLngTuple[];
+}
+
+function FitBoundsToRoute({ positions }: FitBoundsProps) {
   const map = useMap();
   useEffect(() => {
     if (!positions || positions.length < 2) return;
@@ -56,7 +69,11 @@ function FitBoundsToRoute({ positions }) {
 }
 
 // ── Fullscreen sync — invalidate size + zoom when container resizes ────────────
-function FullscreenSync({ isFullscreen }) {
+interface FullscreenSyncProps {
+  isFullscreen: boolean;
+}
+
+function FullscreenSync({ isFullscreen }: FullscreenSyncProps) {
   const map = useMap();
   useEffect(() => {
     setTimeout(() => {
@@ -72,7 +89,7 @@ function FullscreenSync({ isFullscreen }) {
 }
 
 // ── OSRM helper ───────────────────────────────────────────────────────────────
-async function fetchOSRMRoute(waypoints) {
+async function fetchOSRMRoute(waypoints: [number, number][]): Promise<LatLngTuple[]> {
   // waypoints: array of [lat, lon]   OSRM expects lon,lat
   const coordStr = waypoints
     .map(([lat, lon]) => `${lon},${lat}`)
@@ -81,24 +98,26 @@ async function fetchOSRMRoute(waypoints) {
     `https://router.project-osrm.org/route/v1/driving/${coordStr}` +
     `?overview=full&geometries=geojson`;
   const res  = await fetch(url);
-  const data = await res.json();
+  const data = await res.json() as {
+    routes?: Array<{ geometry: { coordinates: [number, number][] } }>;
+  };
   if (!data.routes?.[0]) throw new Error('No route returned');
   // GeoJSON coords are [lon, lat] → flip to [lat, lon] for Leaflet
-  return data.routes[0].geometry.coordinates.map(([lon, lat]) => [lat, lon]);
+  return data.routes[0].geometry.coordinates.map(([lon, lat]): LatLngTuple => [lat, lon]);
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-/**
- * Props:
- *   start   [lat, lon]   – current driver location (green pulse)
- *   pickup  [lat, lon]   – pickup location (indigo PU badge)
- *   dropoff [lat, lon]   – dropoff location (rose DO badge)
- *   stops   Array<{ position:[lat,lon], type:'rest'|'fuel', label?:string }>
- */
-export default function HOSMap({ start, pickup, dropoff, stops = [] }) {
-  const [route, setRoute]       = useState([]);
+interface HOSMapProps {
+  start?: [number, number];
+  pickup?: [number, number];
+  dropoff?: [number, number];
+  stops?: MapStop[];
+}
+
+export default function HOSMap({ start, pickup, dropoff, stops = [] }: HOSMapProps) {
+  const [route, setRoute]       = useState<LatLngTuple[]>([]);
   const [fetching, setFetching] = useState(false);
-  const [routeError, setRouteError] = useState(null);
+  const [routeError, setRouteError] = useState<string | null>(null);
   const { ref: containerRef, isFullscreen, toggle: toggleFullscreen } = useFullscreen();
 
   // Memoise icons so L.divIcon isn't re-created on every render
@@ -120,16 +139,11 @@ export default function HOSMap({ start, pickup, dropoff, stops = [] }) {
     setFetching(true);
     setRouteError(null);
 
-    // Include any intermediate stop positions in the route request
-    const intermediateStops = stops
-      .filter(s => s.position)
-      .map(s => s.position);
-
-    // Build ordered waypoint list: start → stops → pickup → stops → dropoff
-    // For simplicity we just route start→pickup→dropoff; stops are overlaid as markers
+    // Build ordered waypoint list: start → pickup → dropoff
+    // Stops are overlaid as markers only
     fetchOSRMRoute([start, pickup, dropoff])
       .then(positions => { if (!cancelled) setRoute(positions); })
-      .catch(err => { if (!cancelled) setRouteError(err.message); })
+      .catch((err: Error) => { if (!cancelled) setRouteError(err.message); })
       .finally(() => { if (!cancelled) setFetching(false); });
 
     return () => { cancelled = true; };
@@ -140,12 +154,12 @@ export default function HOSMap({ start, pickup, dropoff, stops = [] }) {
   ]);
 
   const hasCoords = Boolean(start && pickup && dropoff);
-  const center    = start ?? US_CENTER;
+  const center: LatLngTuple    = start ?? US_CENTER;
   const zoom      = hasCoords ? 5 : 4;
 
   return (
     <div
-      ref={containerRef}
+      ref={containerRef as React.RefObject<HTMLDivElement>}
       className="relative rounded-2xl overflow-hidden border border-slate-700 shadow-xl bg-slate-950"
       style={{ height: isFullscreen ? '100vh' : '280px' }}
     >
@@ -279,7 +293,13 @@ export default function HOSMap({ start, pickup, dropoff, stops = [] }) {
   );
 }
 
-function LegendRow({ color, label, pulse }) {
+interface LegendRowProps {
+  color: string;
+  label: string;
+  pulse?: boolean;
+}
+
+function LegendRow({ color, label, pulse }: LegendRowProps) {
   return (
     <div className="flex items-center gap-1.5">
       <span className={`w-2 h-2 rounded-full ${color} ${pulse ? 'animate-pulse' : ''}`} />

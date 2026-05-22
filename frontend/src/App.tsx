@@ -3,8 +3,9 @@ import Sidebar from './components/Sidebar';
 import ELDLog from './components/ELDLog';
 import HOSMap from './components/HOSMap';
 import './index.css';
+import { TripForm, TripResult } from './types';
 
-const INITIAL_FORM = {
+const INITIAL_FORM: TripForm = {
   current_location:   '',
   pickup_location:    '',
   dropoff_location:   '',
@@ -12,13 +13,13 @@ const INITIAL_FORM = {
 };
 
 export default function App() {
-  const [form,    setForm]    = useState(INITIAL_FORM);
-  const [result,  setResult]  = useState(null);
+  const [form,    setForm]    = useState<TripForm>(INITIAL_FORM);
+  const [result,  setResult]  = useState<TripResult | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error,   setError]   = useState(null);
+  const [error,   setError]   = useState<string | null>(null);
   const [activeDay, setActiveDay] = useState(0);
 
-  function handleChange(field, value) {
+  function handleChange(field: keyof TripForm, value: string | number) {
     setForm(prev => ({ ...prev, [field]: value }));
   }
 
@@ -33,10 +34,10 @@ export default function App() {
         body:    JSON.stringify(form),
       });
       if (!res.ok) throw new Error(`Server error ${res.status}`);
-      const data = await res.json();
+      const data = await res.json() as TripResult;
       setResult(data);
     } catch (err) {
-      setError(err.message);
+      setError((err as Error).message);
     } finally {
       setLoading(false);
     }
