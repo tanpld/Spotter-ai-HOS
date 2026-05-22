@@ -85,21 +85,25 @@ export default function App() {
     <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col">
       {/* ── Header ── */}
       <header className="border-b border-slate-800 bg-slate-950/80 backdrop-blur sticky top-0 z-10">
-        <div className="max-w-screen-xl mx-auto px-6 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="text-xl font-extrabold tracking-tight text-white">
+        <div className="max-w-screen-xl mx-auto px-4 sm:px-6 h-12 sm:h-14 flex items-center justify-between gap-3">
+          {/* Logo + badge */}
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <span className="text-base sm:text-xl font-extrabold tracking-tight text-white whitespace-nowrap">
               💡 Spotter HOS
             </span>
             <span
-              className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5
-                             rounded-full bg-indigo-600/20 text-indigo-400 border border-indigo-700/50"
+              className="hidden sm:inline text-[10px] font-bold uppercase tracking-widest px-2 py-0.5
+                         rounded-full bg-indigo-600/20 text-indigo-400 border border-indigo-700/50 whitespace-nowrap"
             >
               Full-Stack Assessment
             </span>
           </div>
-          <div className="flex items-center gap-2 text-xs text-slate-500">
+
+          {/* Status indicator */}
+          <div className="flex items-center gap-1.5 text-xs text-slate-500 shrink-0">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            FMCSA HOS Compliant
+            <span className="hidden xs:inline sm:inline">FMCSA</span>
+            <span className="hidden sm:inline">HOS Compliant</span>
           </div>
         </div>
       </header>

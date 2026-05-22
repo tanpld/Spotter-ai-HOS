@@ -190,7 +190,7 @@ export default function HOSMap({
   return (
     <div
       ref={containerRef as React.RefObject<HTMLDivElement>}
-      className="relative rounded-2xl overflow-hidden border border-slate-700 shadow-xl bg-slate-950"
+      className="relative isolate rounded-2xl overflow-hidden border border-slate-700 shadow-xl bg-slate-950"
       style={{ height: isFullscreen ? "100vh" : "280px" }}
     >
       {/* ── Header overlay ── */}
