@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useFullscreen } from '../hooks/useFullscreen';
 
 // ── SVG layout constants ──────────────────────────────────────────────────────
 const ML  = 126;          // margin-left  (row label area)
@@ -24,8 +25,6 @@ const SVG_ROW_LABELS = [
 ];
 
 const ROW_BG = ['#0d1a2e', '#0b1826', '#0b1e17', '#0c1530'];
-
-const ROW_ACCENT = ['#1e3a5f40', '#1a305040', '#1a4a3040', '#1e286040'];
 
 // 25 labels: Midnight … Noon … Midnight
 const HOUR_LABELS = [
@@ -75,9 +74,7 @@ function buildSegments(entries) {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function ELDLog({ day }) {
-  if (!day) return null;
-
-  const { date, log_entries = [] } = day;
+  const { date, log_entries = [] } = day ?? {};
 
   const totals = useMemo(() => {
     const t = Object.fromEntries(ROWS.map(r => [r, 0]));
@@ -92,8 +89,14 @@ export default function ELDLog({ day }) {
 
   const segments = useMemo(() => buildSegments(log_entries), [log_entries]);
 
+  const { ref, isFullscreen, toggle } = useFullscreen();
+
+  if (!day) return null;
+
   return (
-    <div className="rounded-xl overflow-hidden border border-slate-700 bg-slate-950 shadow-2xl select-none">
+    <div ref={ref}
+         className="rounded-xl overflow-hidden border border-slate-700 bg-slate-950 shadow-2xl select-none"
+         style={isFullscreen ? { height: '100vh', overflowY: 'auto' } : {}}>
 
       {/* ── Paper header ── */}
       <div className="flex items-center justify-between px-4 py-2
@@ -104,7 +107,27 @@ export default function ELDLog({ day }) {
           </span>
           <span className="ml-2 text-[10px] text-slate-600">(24 Hours)</span>
         </div>
-        <span className="font-mono text-sm font-bold text-white tracking-wider">{date}</span>
+        <div className="flex items-center gap-3">
+          <span className="font-mono text-sm font-bold text-white tracking-wider">{date}</span>
+          <button
+            onClick={toggle}
+            className="p-1.5 rounded-lg bg-slate-800 border border-slate-700
+                       hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition"
+            title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+          >
+            {isFullscreen ? (
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round"
+                  d="M9 9L4 4m0 0h5m-5 0v5M15 9l5-5m0 0h-5m5 0v5M9 15l-5 5m0 0h5m-5 0v-5M15 15l5 5m0 0h-5m5 0v-5" />
+              </svg>
+            ) : (
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round"
+                  d="M4 8V4m0 0h4M4 4l5 5M20 8V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5M20 16v4m0 0h-4m4 0l-5-5" />
+              </svg>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* ── SVG Grid ── */}

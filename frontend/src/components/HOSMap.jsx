@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
+import { useFullscreen } from '../hooks/useFullscreen';
 import { MapContainer, TileLayer, Polyline, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -54,6 +55,22 @@ function FitBoundsToRoute({ positions }) {
   return null;
 }
 
+// ── Fullscreen sync — invalidate size + zoom when container resizes ────────────
+function FullscreenSync({ isFullscreen }) {
+  const map = useMap();
+  useEffect(() => {
+    setTimeout(() => {
+      map.invalidateSize({ animate: false });
+      if (isFullscreen) {
+        map.zoomIn(3, { animate: true });
+      } else {
+        map.zoomOut(3, { animate: true });
+      }
+    }, 100);
+  }, [isFullscreen, map]);
+  return null;
+}
+
 // ── OSRM helper ───────────────────────────────────────────────────────────────
 async function fetchOSRMRoute(waypoints) {
   // waypoints: array of [lat, lon]   OSRM expects lon,lat
@@ -79,9 +96,10 @@ async function fetchOSRMRoute(waypoints) {
  *   stops   Array<{ position:[lat,lon], type:'rest'|'fuel', label?:string }>
  */
 export default function HOSMap({ start, pickup, dropoff, stops = [] }) {
-  const [route, setRoute]     = useState([]);     // [[lat,lon], …]
+  const [route, setRoute]       = useState([]);
   const [fetching, setFetching] = useState(false);
   const [routeError, setRouteError] = useState(null);
+  const { ref: containerRef, isFullscreen, toggle: toggleFullscreen } = useFullscreen();
 
   // Memoise icons so L.divIcon isn't re-created on every render
   const icons = useMemo(() => ({
@@ -126,19 +144,22 @@ export default function HOSMap({ start, pickup, dropoff, stops = [] }) {
   const zoom      = hasCoords ? 5 : 4;
 
   return (
-    <div className="relative rounded-2xl overflow-hidden border border-slate-700 shadow-xl"
-         style={{ height: '280px' }}>
+    <div
+      ref={containerRef}
+      className="relative rounded-2xl overflow-hidden border border-slate-700 shadow-xl bg-slate-950"
+      style={{ height: isFullscreen ? '100vh' : '280px' }}
+    >
 
       {/* ── Header overlay ── */}
       <div className="absolute top-0 left-0 right-0 z-[1000] px-3 py-2
                       flex items-center gap-2
-                      bg-gradient-to-b from-slate-950/90 to-transparent pointer-events-none">
+                      bg-gradient-to-b from-slate-950/90 to-transparent">
         <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
         <span className="text-xs font-semibold text-slate-400 uppercase tracking-widest">
           Route Map
         </span>
         {fetching && (
-          <span className="ml-auto text-[10px] text-slate-500 flex items-center gap-1">
+          <span className="text-[10px] text-slate-500 flex items-center gap-1">
             <svg className="w-3 h-3 animate-spin" viewBox="0 0 24 24" fill="none">
               <circle className="opacity-25" cx="12" cy="12" r="10"
                 stroke="currentColor" strokeWidth="4" />
@@ -149,8 +170,27 @@ export default function HOSMap({ start, pickup, dropoff, stops = [] }) {
           </span>
         )}
         {routeError && (
-          <span className="ml-auto text-[10px] text-red-400">Route unavailable</span>
+          <span className="text-[10px] text-red-400">Route unavailable</span>
         )}
+        <button
+          onClick={toggleFullscreen}
+          className="ml-auto pointer-events-auto p-1.5 rounded-lg
+                     bg-slate-800/70 border border-slate-700 hover:bg-slate-700
+                     text-slate-400 hover:text-slate-200 transition"
+          title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+        >
+          {isFullscreen ? (
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round"
+                d="M9 9L4 4m0 0h5m-5 0v5M15 9l5-5m0 0h-5m5 0v5M9 15l-5 5m0 0h5m-5 0v-5M15 15l5 5m0 0h-5m5 0v-5" />
+            </svg>
+          ) : (
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round"
+                d="M4 8V4m0 0h4M4 4l5 5M20 8V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5M20 16v4m0 0h-4m4 0l-5-5" />
+            </svg>
+          )}
+        </button>
       </div>
 
       {/* ── Leaflet Map ── */}
@@ -196,6 +236,9 @@ export default function HOSMap({ start, pickup, dropoff, stops = [] }) {
 
         {/* Auto-fit bounds to the fetched polyline */}
         {route.length > 1 && <FitBoundsToRoute positions={route} />}
+
+        {/* Sync map size + zoom on fullscreen toggle */}
+        <FullscreenSync isFullscreen={isFullscreen} />
       </MapContainer>
 
       {/* ── Empty-state overlay ── */}
