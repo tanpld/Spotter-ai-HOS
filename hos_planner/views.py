@@ -17,16 +17,16 @@ Coords = Tuple[float, float]
 # ---------------------------------------------------------------------------
 
 SPEED_MPH = 60.0
-PICKUP_DURATION = 1.0          # hours, ON_DUTY
-DROPOFF_DURATION = 1.0         # hours, ON_DUTY
-FUEL_STOP_DURATION = 0.5       # hours, ON_DUTY
+PICKUP_DURATION = 1.0  # hours, ON_DUTY
+DROPOFF_DURATION = 1.0  # hours, ON_DUTY
+FUEL_STOP_DURATION = 0.5  # hours, ON_DUTY
 FUEL_INTERVAL_MILES = 1000.0
-MAX_DRIVING_HOURS = 11.0       # per rest cycle
-MAX_DUTY_WINDOW = 14.0         # hours from start of duty period
-MIN_REST_HOURS = 10.0          # consecutive off-duty required
-BREAK_THRESHOLD = 8.0          # cumulative on-duty before mandatory break
-BREAK_DURATION = 0.5           # 30-minute break
-MAX_CYCLE_HOURS = 70.0         # 70-hour / 8-day cycle limit
+MAX_DRIVING_HOURS = 11.0  # per rest cycle
+MAX_DUTY_WINDOW = 14.0  # hours from start of duty period
+MIN_REST_HOURS = 10.0  # consecutive off-duty required
+BREAK_THRESHOLD = 8.0  # cumulative on-duty before mandatory break
+BREAK_DURATION = 0.5  # 30-minute break
+MAX_CYCLE_HOURS = 70.0  # 70-hour / 8-day cycle limit
 
 # ---------------------------------------------------------------------------
 # Geocoding — Nominatim (OpenStreetMap) with in-memory cache
@@ -34,22 +34,28 @@ MAX_CYCLE_HOURS = 70.0         # 70-hour / 8-day cycle limit
 
 _geocode_cache: dict = {}
 
+
 def geocode(location: str) -> Coords:
     key = location.strip().lower()
     if key in _geocode_cache:
         return _geocode_cache[key]
 
-    params = urllib.parse.urlencode({
-        "q": location,
-        "format": "json",
-        "limit": 1,
-        "addressdetails": 0,
-    })
+    params = urllib.parse.urlencode(
+        {
+            "q": location,
+            "format": "json",
+            "limit": 1,
+            "addressdetails": 0,
+        }
+    )
     url = f"https://nominatim.openstreetmap.org/search?{params}"
-    req = urllib.request.Request(url, headers={
-        "User-Agent": "SpotterHOS/1.0 (educational project; contact: spotter@example.com)",
-        "Accept-Language": "en",
-    })
+    req = urllib.request.Request(
+        url,
+        headers={
+            "User-Agent": "SpotterHOS/1.0 (educational project; contact: spotter@example.com)",
+            "Accept-Language": "en",
+        },
+    )
     try:
         with urllib.request.urlopen(req, timeout=8) as resp:
             results = json.loads(resp.read().decode())
@@ -78,11 +84,12 @@ def _interpolate_on_route(miles, d_to_pick, total_dist, cur, pick, drop):
         return [round(cur[0], 5), round(cur[1], 5)]
     if miles <= d_to_pick:
         t = miles / d_to_pick if d_to_pick > 1e-6 else 0.0
-        return [round(_lerp(cur[0], pick[0], t), 5),
-                round(_lerp(cur[1], pick[1], t), 5)]
+        return [
+            round(_lerp(cur[0], pick[0], t), 5),
+            round(_lerp(cur[1], pick[1], t), 5),
+        ]
     t = min((miles - d_to_pick) / max(total_dist - d_to_pick, 1e-6), 1.0)
-    return [round(_lerp(pick[0], drop[0], t), 5),
-            round(_lerp(pick[1], drop[1], t), 5)]
+    return [round(_lerp(pick[0], drop[0], t), 5), round(_lerp(pick[1], drop[1], t), 5)]
 
 
 def _build_stop_markers(events, d_to_pick, total_dist, cur, pick, drop):
@@ -94,17 +101,25 @@ def _build_stop_markers(events, d_to_pick, total_dist, cur, pick, drop):
         if ev["status"] == "DRIVING":
             cum_miles += dur * SPEED_MPH
         if ev["status"] == "SLEEPER_BERTH":
-            markers.append({
-                "position": _interpolate_on_route(cum_miles, d_to_pick, total_dist, cur, pick, drop),
-                "type": "rest",
-                "label": "Rest Stop",
-            })
+            markers.append(
+                {
+                    "position": _interpolate_on_route(
+                        cum_miles, d_to_pick, total_dist, cur, pick, drop
+                    ),
+                    "type": "rest",
+                    "label": "Rest Stop",
+                }
+            )
         elif ev["status"] == "ON_DUTY" and ev.get("reason") == "FUELING":
-            markers.append({
-                "position": _interpolate_on_route(cum_miles, d_to_pick, total_dist, cur, pick, drop),
-                "type": "fuel",
-                "label": "Fuel Stop",
-            })
+            markers.append(
+                {
+                    "position": _interpolate_on_route(
+                        cum_miles, d_to_pick, total_dist, cur, pick, drop
+                    ),
+                    "type": "fuel",
+                    "label": "Fuel Stop",
+                }
+            )
     return markers
 
 
@@ -112,8 +127,10 @@ def haversine_miles(c1: Coords, c2: Coords) -> float:
     R = 3958.8
     lat1, lon1 = math.radians(c1[0]), math.radians(c1[1])
     lat2, lon2 = math.radians(c2[0]), math.radians(c2[1])
-    a = (math.sin((lat2 - lat1) / 2) ** 2
-         + math.cos(lat1) * math.cos(lat2) * math.sin((lon2 - lon1) / 2) ** 2)
+    a = (
+        math.sin((lat2 - lat1) / 2) ** 2
+        + math.cos(lat1) * math.cos(lat2) * math.sin((lon2 - lon1) / 2) ** 2
+    )
     return R * 2 * math.asin(math.sqrt(a))
 
 
@@ -126,9 +143,7 @@ def road_distance_miles(c1: Coords, c2: Coords) -> float:
         f"{lon1},{lat1};{lon2},{lat2}"
         f"?overview=false"
     )
-    req = urllib.request.Request(
-        url, headers={"User-Agent": "SpotterHOS/1.0"}
-    )
+    req = urllib.request.Request(url, headers={"User-Agent": "SpotterHOS/1.0"})
     try:
         with urllib.request.urlopen(req, timeout=8) as resp:
             data = json.loads(resp.read().decode())
@@ -142,6 +157,7 @@ def road_distance_miles(c1: Coords, c2: Coords) -> float:
 # ---------------------------------------------------------------------------
 # HOS Engine
 # ---------------------------------------------------------------------------
+
 
 class HOSEngine:
     """
@@ -158,13 +174,13 @@ class HOSEngine:
         self.clock = 0.0
         self.events: list = []
 
-        self.driving_since_rest = 0.0    # driving hours since last 10-h rest
-        self.window_start = 0.0          # absolute hour when current duty window began
-        self.duty_since_break = 0.0      # cumulative on-duty since last 30-min break
+        self.driving_since_rest = 0.0  # driving hours since last 10-h rest
+        self.window_start = 0.0  # absolute hour when current duty window began
+        self.duty_since_break = 0.0  # cumulative on-duty since last 30-min break
         self.miles_since_fuel = 0.0
 
         self.current_cycle_used = current_cycle_used
-        self.trip_duty_hours = 0.0       # accumulated during this trip
+        self.trip_duty_hours = 0.0  # accumulated during this trip
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -274,6 +290,7 @@ class HOSEngine:
 # Day segmentation helpers
 # ---------------------------------------------------------------------------
 
+
 def _hours_to_hhmm(h: float) -> str:
     h = max(0.0, h)
     total_min = round(h * 60)
@@ -290,21 +307,25 @@ def _fill_gaps(entries: list, day_end: float = 24.0) -> list:
     cursor = 0.0
     for e in sorted(entries, key=lambda x: x["start"]):
         if e["start"] > cursor + 1e-6:
-            result.append({
-                "start": cursor,
-                "end": e["start"],
-                "status": "OFF_DUTY",
-                "duration": e["start"] - cursor,
-            })
+            result.append(
+                {
+                    "start": cursor,
+                    "end": e["start"],
+                    "status": "OFF_DUTY",
+                    "duration": e["start"] - cursor,
+                }
+            )
         result.append(e)
         cursor = e["end"]
     if cursor < day_end - 1e-6:
-        result.append({
-            "start": cursor,
-            "end": day_end,
-            "status": "OFF_DUTY",
-            "duration": day_end - cursor,
-        })
+        result.append(
+            {
+                "start": cursor,
+                "end": day_end,
+                "status": "OFF_DUTY",
+                "duration": day_end - cursor,
+            }
+        )
     return result
 
 
@@ -350,49 +371,30 @@ def segment_into_days(events: list, start_date: date) -> list:
                 le["reason"] = e["reason"]
             log_entries.append(le)
 
-        days.append({
-            "date": (start_date + timedelta(days=d)).isoformat(),
-            "log_entries": log_entries,
-        })
+        days.append(
+            {
+                "date": (start_date + timedelta(days=d)).isoformat(),
+                "log_entries": log_entries,
+            }
+        )
 
     return days
 
 
 # ---------------------------------------------------------------------------
-# View
+# Trip planner — pure function, no HTTP / DB concerns
 # ---------------------------------------------------------------------------
 
-@csrf_exempt
-@require_http_methods(["POST"])
-def hos_planner(request):
-    try:
-        body = json.loads(request.body)
-    except (json.JSONDecodeError, ValueError):
-        return JsonResponse({"error": "Invalid JSON"}, status=400)
 
-    required = ["current_location", "pickup_location", "dropoff_location", "current_cycle_used"]
-    missing = [f for f in required if f not in body]
-    if missing:
-        return JsonResponse({"error": f"Missing fields: {missing}"}, status=400)
-
-    def _resolve(key: str, coords_key: str):
-        raw = body.get(coords_key)
-        if raw and len(raw) == 2:
-            return (float(raw[0]), float(raw[1]))
-        return geocode(body[key])
-
-    try:
-        cur_coords  = _resolve("current_location",  "current_coords")
-        pick_coords = _resolve("pickup_location",   "pickup_coords")
-        drop_coords = _resolve("dropoff_location",  "dropoff_coords")
-    except ValueError as exc:
-        return JsonResponse({"error": str(exc)}, status=400)
-
-    current_cycle_used = float(body["current_cycle_used"])
-
-    dist_to_pickup  = road_distance_miles(cur_coords, pick_coords)
+def _plan_trip(
+    cur_coords: Coords,
+    pick_coords: Coords,
+    drop_coords: Coords,
+    current_cycle_used: float,
+) -> dict:
+    dist_to_pickup = road_distance_miles(cur_coords, pick_coords)
     dist_to_dropoff = road_distance_miles(pick_coords, drop_coords)
-    total_distance  = dist_to_pickup + dist_to_dropoff
+    total_distance = dist_to_pickup + dist_to_dropoff
 
     engine = HOSEngine(current_cycle_used)
     engine.drive(dist_to_pickup)
@@ -411,49 +413,94 @@ def hos_planner(request):
         )
 
     total_driving_hours = sum(
-        ev["end"] - ev["start"]
-        for ev in engine.events
-        if ev["status"] == "DRIVING"
+        ev["end"] - ev["start"] for ev in engine.events if ev["status"] == "DRIVING"
     )
 
     days = segment_into_days(engine.events, date.today())
-
     stop_markers = _build_stop_markers(
-        engine.events, dist_to_pickup, total_distance,
-        cur_coords, pick_coords, drop_coords,
+        engine.events,
+        dist_to_pickup,
+        total_distance,
+        cur_coords,
+        pick_coords,
+        drop_coords,
     )
 
-    response_payload = {
+    return {
         "trip_summary": {
-            "total_distance_miles":       round(total_distance, 2),
-            "total_driving_hours":        round(total_driving_hours, 4),
-            "pickup_duration_hours":      PICKUP_DURATION,
-            "dropoff_duration_hours":     DROPOFF_DURATION,
-            "current_cycle_used":         current_cycle_used,
+            "total_distance_miles": round(total_distance, 2),
+            "total_driving_hours": round(total_driving_hours, 4),
+            "pickup_duration_hours": PICKUP_DURATION,
+            "dropoff_duration_hours": DROPOFF_DURATION,
+            "current_cycle_used": current_cycle_used,
             "estimated_cycle_after_trip": round(cycle_after_trip, 2),
         },
         "map_data": {
-            "start":   list(cur_coords),
-            "pickup":  list(pick_coords),
+            "start": list(cur_coords),
+            "pickup": list(pick_coords),
             "dropoff": list(drop_coords),
-            "stops":   stop_markers,
+            "stops": stop_markers,
         },
         "days": days,
         "warnings": warnings,
         "34_hour_restart_required": restart_required,
     }
 
-    TripLog.objects.create(
-        current_location=body["current_location"],
-        pickup_location=body["pickup_location"],
-        dropoff_location=body["dropoff_location"],
-        current_cycle_used=current_cycle_used,
-        total_distance_miles=round(total_distance, 2),
-        total_driving_hours=round(total_driving_hours, 4),
-        total_days=len(days),
-        cycle_after_trip=round(cycle_after_trip, 2),
-        restart_required=restart_required,
-        trip_data=response_payload,
-    )
 
-    return JsonResponse(response_payload)
+# ---------------------------------------------------------------------------
+# View
+# ---------------------------------------------------------------------------
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def hos_planner(request):
+    try:
+        body = json.loads(request.body)
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    required = [
+        "current_location",
+        "pickup_location",
+        "dropoff_location",
+        "current_cycle_used",
+    ]
+    missing = [f for f in required if f not in body]
+    if missing:
+        return JsonResponse({"error": f"Missing fields: {missing}"}, status=400)
+
+    def _resolve(key: str, coords_key: str) -> Coords:
+        raw = body.get(coords_key)
+        if raw and len(raw) == 2:
+            return (float(raw[0]), float(raw[1]))
+        return geocode(body[key])
+
+    try:
+        cur_coords = _resolve("current_location", "current_coords")
+        pick_coords = _resolve("pickup_location", "pickup_coords")
+        drop_coords = _resolve("dropoff_location", "dropoff_coords")
+    except ValueError as exc:
+        return JsonResponse({"error": str(exc)}, status=400)
+
+    current_cycle_used = float(body["current_cycle_used"])
+    payload = _plan_trip(cur_coords, pick_coords, drop_coords, current_cycle_used)
+
+    try:
+        summary = payload["trip_summary"]
+        TripLog.objects.create(
+            current_location=body["current_location"],
+            pickup_location=body["pickup_location"],
+            dropoff_location=body["dropoff_location"],
+            current_cycle_used=current_cycle_used,
+            total_distance_miles=summary["total_distance_miles"],
+            total_driving_hours=summary["total_driving_hours"],
+            total_days=len(payload["days"]),
+            cycle_after_trip=summary["estimated_cycle_after_trip"],
+            restart_required=payload["34_hour_restart_required"],
+            trip_data=payload,
+        )
+    except Exception:
+        pass  # log write failure must not fail the API response
+
+    return JsonResponse(payload)

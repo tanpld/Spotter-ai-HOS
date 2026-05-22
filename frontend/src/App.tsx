@@ -1,38 +1,46 @@
-import { useState } from 'react';
-import Sidebar from './components/Sidebar';
-import ELDLog from './components/ELDLog';
-import HOSMap from './components/HOSMap';
-import './index.css';
-import { TripForm, TripResult, ResolvedCoords } from './types';
+import { useState } from "react";
+import Sidebar from "./components/Sidebar";
+import ELDLog from "./components/ELDLog";
+import HOSMap from "./components/HOSMap";
+import "./index.css";
+import { TripForm, TripResult } from "./types";
+
+type ResolvedCoords = Partial<
+  Record<
+    "current_location" | "pickup_location" | "dropoff_location",
+    [number, number]
+  >
+>;
 
 const INITIAL_FORM: TripForm = {
-  current_location:   '',
-  pickup_location:    '',
-  dropoff_location:   '',
+  current_location: "",
+  pickup_location: "",
+  dropoff_location: "",
   current_cycle_used: 0,
 };
 
 export default function App() {
-  const [form,           setForm]           = useState<TripForm>(INITIAL_FORM);
+  const [form, setForm] = useState<TripForm>(INITIAL_FORM);
   const [resolvedCoords, setResolvedCoords] = useState<ResolvedCoords>({});
-  const [result,         setResult]         = useState<TripResult | null>(null);
-  const [loading,        setLoading]        = useState(false);
-  const [error,          setError]          = useState<string | null>(null);
-  const [activeDay,      setActiveDay]      = useState(0);
+  const [result, setResult] = useState<TripResult | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [activeDay, setActiveDay] = useState(0);
 
-  function handleChange(field: keyof TripForm, value: string | number, coords?: [number, number]) {
-    setForm(prev => ({ ...prev, [field]: value }));
-    if (field === 'current_location' || field === 'pickup_location' || field === 'dropoff_location') {
-      setResolvedCoords(prev => {
-        const next = { ...prev };
-        if (coords) {
-          next[field] = coords;
-        } else {
-          delete next[field];
-        }
-        return next;
-      });
-    }
+  function handleChange(
+    field: keyof TripForm,
+    value: string | number,
+    coords?: [number, number],
+  ) {
+    setForm((prev) => ({ ...prev, [field]: value }));
+    if (field === "current_cycle_used") return;
+    setResolvedCoords((prev) => {
+      const next = { ...prev };
+      const key = field as keyof ResolvedCoords;
+      if (coords) next[key] = coords;
+      else delete next[key];
+      return next;
+    });
   }
 
   async function handleSubmit() {
@@ -43,17 +51,23 @@ export default function App() {
     try {
       const payload = {
         ...form,
-        ...(resolvedCoords.current_location  ? { current_coords:  resolvedCoords.current_location  } : {}),
-        ...(resolvedCoords.pickup_location   ? { pickup_coords:   resolvedCoords.pickup_location   } : {}),
-        ...(resolvedCoords.dropoff_location  ? { dropoff_coords:  resolvedCoords.dropoff_location  } : {}),
+        ...(resolvedCoords.current_location
+          ? { current_coords: resolvedCoords.current_location }
+          : {}),
+        ...(resolvedCoords.pickup_location
+          ? { pickup_coords: resolvedCoords.pickup_location }
+          : {}),
+        ...(resolvedCoords.dropoff_location
+          ? { dropoff_coords: resolvedCoords.dropoff_location }
+          : {}),
       };
-      const res = await fetch('/api/hos-planner/', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify(payload),
+      const res = await fetch("/api/hos-planner/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error(`Server error ${res.status}`);
-      const data = await res.json() as TripResult;
+      const data = (await res.json()) as TripResult;
       setResult(data);
     } catch (err) {
       setError((err as Error).message);
@@ -62,9 +76,9 @@ export default function App() {
     }
   }
 
-  const days    = result?.days ?? [];
+  const days = result?.days ?? [];
   const summary = result?.trip_summary ?? null;
-  const restart = result?.['34_hour_restart_required'] ?? false;
+  const restart = result?.["34_hour_restart_required"] ?? false;
   const mapData = result?.map_data ?? null;
 
   return (
@@ -76,8 +90,10 @@ export default function App() {
             <span className="text-xl font-extrabold tracking-tight text-white">
               💡 Spotter HOS
             </span>
-            <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5
-                             rounded-full bg-indigo-600/20 text-indigo-400 border border-indigo-700/50">
+            <span
+              className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5
+                             rounded-full bg-indigo-600/20 text-indigo-400 border border-indigo-700/50"
+            >
               Full-Stack Assessment
             </span>
           </div>
@@ -90,7 +106,6 @@ export default function App() {
 
       {/* ── Body ── */}
       <main className="flex-1 max-w-screen-xl mx-auto w-full px-6 py-6 grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-6">
-
         {/* ── Left column: form + map ── */}
         <div className="flex flex-col gap-4">
           <Sidebar
@@ -109,16 +124,19 @@ export default function App() {
 
         {/* ── Right column: Results ── */}
         <section className="flex flex-col gap-4">
-
           {/* 34-hour restart — amber, highly visible */}
           {restart && (
-            <div className="rounded-xl border border-amber-500 bg-amber-950/70 px-5 py-4
+            <div
+              className="rounded-xl border border-amber-500 bg-amber-950/70 px-5 py-4
                             flex items-start gap-4
                             shadow-lg shadow-amber-900/40
-                            ring-1 ring-amber-400/20">
-              <div className="shrink-0 w-10 h-10 rounded-xl
+                            ring-1 ring-amber-400/20"
+            >
+              <div
+                className="shrink-0 w-10 h-10 rounded-xl
                               bg-amber-400/20 border border-amber-500/50
-                              flex items-center justify-center text-xl mt-0.5">
+                              flex items-center justify-center text-xl mt-0.5"
+              >
                 ⚠️
               </div>
               <div>
@@ -126,10 +144,10 @@ export default function App() {
                   34-Hour Restart Required
                 </p>
                 <p className="text-xs text-amber-400/90 mt-1 leading-relaxed">
-                  Cycle hours exceeded{' '}
-                  <span className="font-bold text-amber-300">70 h</span>.{' '}
-                  Driver must complete a mandatory{' '}
-                  <span className="font-bold text-amber-300">34-hour</span>{' '}
+                  Cycle hours exceeded{" "}
+                  <span className="font-bold text-amber-300">70 h</span>. Driver
+                  must complete a mandatory{" "}
+                  <span className="font-bold text-amber-300">34-hour</span>{" "}
                   off-duty restart before resuming operations.
                 </p>
               </div>
@@ -140,15 +158,33 @@ export default function App() {
           {summary && (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
-                { label: 'Total Distance', value: `${summary.total_distance_miles} mi` },
-                { label: 'Driving Hours',  value: `${summary.total_driving_hours} h` },
-                { label: 'Cycle After',    value: `${summary.estimated_cycle_after_trip} h` },
-                { label: 'Trip Days',      value: `${days.length} day${days.length !== 1 ? 's' : ''}` },
+                {
+                  label: "Total Distance",
+                  value: `${summary.total_distance_miles} mi`,
+                },
+                {
+                  label: "Driving Hours",
+                  value: `${summary.total_driving_hours} h`,
+                },
+                {
+                  label: "Cycle After",
+                  value: `${summary.estimated_cycle_after_trip} h`,
+                },
+                {
+                  label: "Trip Days",
+                  value: `${days.length} day${days.length !== 1 ? "s" : ""}`,
+                },
               ].map(({ label, value }) => (
-                <div key={label}
-                  className="rounded-xl border border-slate-700 bg-slate-800/50 px-4 py-3 text-center">
-                  <div className="text-[10px] uppercase tracking-widest text-slate-500 mb-1">{label}</div>
-                  <div className="text-lg font-extrabold text-white font-mono">{value}</div>
+                <div
+                  key={label}
+                  className="rounded-xl border border-slate-700 bg-slate-800/50 px-4 py-3 text-center"
+                >
+                  <div className="text-[10px] uppercase tracking-widest text-slate-500 mb-1">
+                    {label}
+                  </div>
+                  <div className="text-lg font-extrabold text-white font-mono">
+                    {value}
+                  </div>
                 </div>
               ))}
             </div>
@@ -172,12 +208,16 @@ export default function App() {
                     onClick={() => setActiveDay(i)}
                     className={`shrink-0 px-5 py-3 text-xs font-bold uppercase tracking-wider
                                 transition border-b-2
-                                ${i === activeDay
-                                  ? 'border-indigo-500 text-indigo-300 bg-slate-800/60'
-                                  : 'border-transparent text-slate-500 hover:text-slate-300'}`}
+                                ${
+                                  i === activeDay
+                                    ? "border-indigo-500 text-indigo-300 bg-slate-800/60"
+                                    : "border-transparent text-slate-500 hover:text-slate-300"
+                                }`}
                   >
                     Day {i + 1}
-                    <span className="ml-1.5 text-[9px] font-mono opacity-60">{day.date}</span>
+                    <span className="ml-1.5 text-[9px] font-mono opacity-60">
+                      {day.date}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -193,20 +233,28 @@ export default function App() {
           {!result && !loading && (
             <div className="flex-1 flex flex-col items-center justify-center py-24 text-center">
               <div className="relative mb-6">
-                <div className="w-20 h-20 rounded-2xl bg-slate-800/80 border border-slate-700
-                                flex items-center justify-center text-4xl shadow-xl">
+                <div
+                  className="w-20 h-20 rounded-2xl bg-slate-800/80 border border-slate-700
+                                flex items-center justify-center text-4xl shadow-xl"
+                >
                   📋
                 </div>
-                <div className="absolute -bottom-1.5 -right-1.5 w-8 h-8 rounded-xl
+                <div
+                  className="absolute -bottom-1.5 -right-1.5 w-8 h-8 rounded-xl
                                 bg-indigo-600 border-2 border-slate-900
-                                flex items-center justify-center text-base shadow-lg">
+                                flex items-center justify-center text-base shadow-lg"
+                >
                   🚛
                 </div>
               </div>
-              <h3 className="text-slate-300 font-bold text-base mb-2">No log generated yet</h3>
+              <h3 className="text-slate-300 font-bold text-base mb-2">
+                No log generated yet
+              </h3>
               <p className="text-slate-500 text-sm max-w-[260px] leading-relaxed">
-                Enter trip details to generate{' '}
-                <span className="text-slate-400 font-medium">FMCSA compliant</span>{' '}
+                Enter trip details to generate{" "}
+                <span className="text-slate-400 font-medium">
+                  FMCSA compliant
+                </span>{" "}
                 ELD logs and route map
               </p>
               <div className="mt-6 flex items-center gap-2 text-[11px] text-slate-700">
@@ -223,7 +271,10 @@ export default function App() {
               {/* 4 summary pills */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {[...Array(4)].map((_, i) => (
-                  <div key={i} className="rounded-xl border border-slate-700 bg-slate-800/50 px-4 py-3">
+                  <div
+                    key={i}
+                    className="rounded-xl border border-slate-700 bg-slate-800/50 px-4 py-3"
+                  >
                     <div className="h-2 w-16 rounded bg-slate-700 mb-3 mx-auto" />
                     <div className="h-5 w-12 rounded bg-slate-600 mx-auto" />
                   </div>

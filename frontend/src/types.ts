@@ -1,4 +1,4 @@
-export type HosStatus = 'OFF_DUTY' | 'SLEEPER_BERTH' | 'DRIVING' | 'ON_DUTY';
+export type HosStatus = "OFF_DUTY" | "SLEEPER_BERTH" | "DRIVING" | "ON_DUTY";
 
 export interface LogEntry {
   status: HosStatus;
@@ -17,11 +17,14 @@ export interface TripSummary {
   total_distance_miles: number;
   total_driving_hours: number;
   estimated_cycle_after_trip: number;
+  pickup_duration_hours: number;
+  dropoff_duration_hours: number;
+  current_cycle_used: number;
 }
 
 export interface MapStop {
   position: [number, number];
-  type: 'rest' | 'fuel';
+  type: "rest" | "fuel";
   label?: string;
 }
 
@@ -35,7 +38,7 @@ export interface MapData {
 export interface TripResult {
   days: Day[];
   trip_summary: TripSummary;
-  '34_hour_restart_required': boolean;
+  "34_hour_restart_required": boolean;
   map_data: MapData;
 }
 
@@ -45,6 +48,3 @@ export interface TripForm {
   dropoff_location: string;
   current_cycle_used: number;
 }
-
-// Pre-resolved coordinates keyed by the three location fields
-export type ResolvedCoords = Partial<Record<'current_location' | 'pickup_location' | 'dropoff_location', [number, number]>>;

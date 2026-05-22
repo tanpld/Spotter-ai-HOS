@@ -2,24 +2,24 @@ from django.db import models
 
 
 class TripLog(models.Model):
-    current_location  = models.CharField(max_length=255)
-    pickup_location   = models.CharField(max_length=255)
-    dropoff_location  = models.CharField(max_length=255)
+    current_location = models.CharField(max_length=255)
+    pickup_location = models.CharField(max_length=255)
+    dropoff_location = models.CharField(max_length=255)
     current_cycle_used = models.FloatField()
 
-    total_distance_miles  = models.FloatField()
-    total_driving_hours   = models.FloatField()
-    total_days            = models.PositiveIntegerField()
-    cycle_after_trip      = models.FloatField()
-    restart_required      = models.BooleanField(default=False)
+    total_distance_miles = models.FloatField()
+    total_driving_hours = models.FloatField()
+    total_days = models.PositiveIntegerField()
+    cycle_after_trip = models.FloatField()
+    restart_required = models.BooleanField(default=False)
 
-    trip_data   = models.JSONField()   # full API response payload
-    created_at  = models.DateTimeField(auto_now_add=True)
+    trip_data = models.JSONField()  # full API response payload
+    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ['-created_at']
-        verbose_name = 'Trip Log'
-        verbose_name_plural = 'Trip Logs'
+        ordering = ["-created_at"]
+        verbose_name = "Trip Log"
+        verbose_name_plural = "Trip Logs"
 
     def __str__(self):
         return (
