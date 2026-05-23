@@ -74,28 +74,11 @@ def geocode(location: str) -> Coords:
 # ---------------------------------------------------------------------------
 
 
-def _lerp(a, b, t):
-    return a + t * (b - a)
-
-
-def _interpolate_on_route(miles, d_to_pick, total_dist, cur, pick, drop):
-    """Return [lat, lon] at `miles` along the cur→pick→drop straight-line path."""
-    if total_dist < 1e-6:
-        return [round(cur[0], 5), round(cur[1], 5)]
-    if miles <= d_to_pick:
-        t = miles / d_to_pick if d_to_pick > 1e-6 else 0.0
-        return [
-            round(_lerp(cur[0], pick[0], t), 5),
-            round(_lerp(cur[1], pick[1], t), 5),
-        ]
-    t = min((miles - d_to_pick) / max(total_dist - d_to_pick, 1e-6), 1.0)
-    return [round(_lerp(pick[0], drop[0], t), 5), round(_lerp(pick[1], drop[1], t), 5)]
-
-
-def _build_stop_markers(events, d_to_pick, total_dist, cur, pick, drop):
-    """Scan the flat event list and return map marker dicts for rest/fuel stops."""
+def _build_stop_markers(events, total_dist):
+    """Return stop markers with a progress fraction (0–1) along the total route."""
     markers = []
     cum_miles = 0.0
+    safe_total = max(total_dist, 1e-6)
     for ev in events:
         dur = ev["end"] - ev["start"]
         if ev["status"] == "DRIVING":
@@ -103,9 +86,7 @@ def _build_stop_markers(events, d_to_pick, total_dist, cur, pick, drop):
         if ev["status"] == "SLEEPER_BERTH":
             markers.append(
                 {
-                    "position": _interpolate_on_route(
-                        cum_miles, d_to_pick, total_dist, cur, pick, drop
-                    ),
+                    "progress": round(min(cum_miles / safe_total, 1.0), 5),
                     "type": "rest",
                     "label": "Rest Stop",
                 }
@@ -113,9 +94,7 @@ def _build_stop_markers(events, d_to_pick, total_dist, cur, pick, drop):
         elif ev["status"] == "ON_DUTY" and ev.get("reason") == "FUELING":
             markers.append(
                 {
-                    "position": _interpolate_on_route(
-                        cum_miles, d_to_pick, total_dist, cur, pick, drop
-                    ),
+                    "progress": round(min(cum_miles / safe_total, 1.0), 5),
                     "type": "fuel",
                     "label": "Fuel Stop",
                 }
@@ -417,14 +396,7 @@ def _plan_trip(
     )
 
     days = segment_into_days(engine.events, date.today())
-    stop_markers = _build_stop_markers(
-        engine.events,
-        dist_to_pickup,
-        total_distance,
-        cur_coords,
-        pick_coords,
-        drop_coords,
-    )
+    stop_markers = _build_stop_markers(engine.events, total_distance)
 
     return {
         "trip_summary": {

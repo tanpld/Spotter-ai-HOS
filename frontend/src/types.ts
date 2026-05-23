@@ -23,7 +23,8 @@ export interface TripSummary {
 }
 
 export interface MapStop {
-  position: [number, number];
+  position?: [number, number];
+  progress?: number;
   type: "rest" | "fuel";
   label?: string;
 }

@@ -116,6 +116,34 @@ async function fetchOSRMRoute(
   );
 }
 
+// ── Polyline interpolation ────────────────────────────────────────────────────
+function interpolateOnPolyline(
+  route: LatLngTuple[],
+  progress: number,
+): LatLngTuple {
+  if (route.length < 2) return route[0];
+  let total = 0;
+  const cumulative = [0];
+  for (let i = 1; i < route.length; i++) {
+    const dlat = route[i][0] - route[i - 1][0];
+    const dlon = route[i][1] - route[i - 1][1];
+    total += Math.sqrt(dlat * dlat + dlon * dlon);
+    cumulative.push(total);
+  }
+  const target = Math.min(Math.max(progress, 0), 1) * total;
+  for (let i = 1; i < route.length; i++) {
+    if (cumulative[i] >= target) {
+      const segLen = cumulative[i] - cumulative[i - 1];
+      const t = segLen < 1e-10 ? 0 : (target - cumulative[i - 1]) / segLen;
+      return [
+        route[i - 1][0] + t * (route[i][0] - route[i - 1][0]),
+        route[i - 1][1] + t * (route[i][1] - route[i - 1][1]),
+      ];
+    }
+  }
+  return route[route.length - 1];
+}
+
 // makeIcon is pure — create icons once at module level instead of per render
 const ICONS = {
   start: makeIcon("start"),
@@ -300,16 +328,19 @@ export default function HOSMap({
         {dropoff && <Marker position={dropoff} icon={ICONS.dropoff} />}
 
         {/* Intermediate stop markers */}
-        {stops.map(
-          (stop, i) =>
-            stop.position && (
-              <Marker
-                key={i}
-                position={stop.position}
-                icon={stop.type === "fuel" ? ICONS.fuel : ICONS.rest}
-              />
-            ),
-        )}
+        {stops.map((stop, i) => {
+          const pos =
+            stop.progress !== undefined && route.length > 1
+              ? interpolateOnPolyline(route, stop.progress)
+              : stop.position;
+          return pos ? (
+            <Marker
+              key={i}
+              position={pos}
+              icon={stop.type === "fuel" ? ICONS.fuel : ICONS.rest}
+            />
+          ) : null;
+        })}
 
         {/* Auto-fit bounds to the fetched polyline */}
         {route.length > 1 && <FitBoundsToRoute positions={route} />}
