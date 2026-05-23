@@ -3,8 +3,17 @@ from django.db import models
 
 class TripLog(models.Model):
     current_location = models.CharField(max_length=255)
+    current_lat = models.FloatField(null=True)
+    current_lon = models.FloatField(null=True)
+
     pickup_location = models.CharField(max_length=255)
+    pickup_lat = models.FloatField(null=True)
+    pickup_lon = models.FloatField(null=True)
+
     dropoff_location = models.CharField(max_length=255)
+    dropoff_lat = models.FloatField(null=True)
+    dropoff_lon = models.FloatField(null=True)
+
     current_cycle_used = models.FloatField()
 
     total_distance_miles = models.FloatField()

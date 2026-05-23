@@ -462,8 +462,14 @@ def hos_planner(request):
         summary = payload["trip_summary"]
         TripLog.objects.create(
             current_location=body["current_location"],
+            current_lat=cur_coords[0],
+            current_lon=cur_coords[1],
             pickup_location=body["pickup_location"],
+            pickup_lat=pick_coords[0],
+            pickup_lon=pick_coords[1],
             dropoff_location=body["dropoff_location"],
+            dropoff_lat=drop_coords[0],
+            dropoff_lon=drop_coords[1],
             current_cycle_used=current_cycle_used,
             total_distance_miles=summary["total_distance_miles"],
             total_driving_hours=summary["total_driving_hours"],

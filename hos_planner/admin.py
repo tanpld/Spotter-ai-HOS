@@ -23,8 +23,12 @@ class TripLogAdmin(admin.ModelAdmin):
     )
     fieldsets = (
         ('Trip Input', {
-            'fields': ('current_location', 'pickup_location', 'dropoff_location',
-                       'current_cycle_used'),
+            'fields': (
+                'current_location', ('current_lat', 'current_lon'),
+                'pickup_location',  ('pickup_lat',  'pickup_lon'),
+                'dropoff_location', ('dropoff_lat', 'dropoff_lon'),
+                'current_cycle_used',
+            ),
         }),
         ('Computed Summary', {
             'fields': ('total_distance_miles', 'total_driving_hours',
