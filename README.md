@@ -1,4 +1,4 @@
-Live demo: spotter-ai-hos.vercel.app
+Live demo: [Spotter HOS](https://spotter-ai-hos.vercel.app)
 
 # What is Spotter HOS?
 
