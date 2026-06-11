@@ -1,3 +1,5 @@
+Live demo: spotter-ai-hos.vercel.app
+
 # What is Spotter HOS?
 
 Spotter HOS is a trip planning tool for truck drivers that automatically figures out when they need to stop, rest, and refuel — all while staying within federal law.
